@@ -26,6 +26,7 @@ namespace WorldboxGlobe
         static readonly Color Atmosphere = new Color(0.45f, 0.7f, 1f, 0.45f);
         const int StarSize = 512;       // 星空贴图的边长，一个像素对应屏幕上一个像素
         const float StarDrift = 0.15f;  // 横向转一圈，星空移动贴图的几分之一
+        const float SpaceDrift = 0.04f; // 太空背景图随转球移动的幅度（以屏幕大小为 1）
         const int Layer = 31;           // 只有地球仪相机画这一层
         const string RootName = "globe_view";
         static readonly Color Space = new Color(0.02f, 0.03f, 0.06f);
@@ -69,7 +70,8 @@ namespace WorldboxGlobe
             Mesh _haloMesh;
             Vector3[] _haloVerts;
             Color32[] _haloColors;
-            MeshRenderer _stars;    // 星空，贴在相机前面，随转球微微移动
+            MeshRenderer _stars;    // 找不到原版太空图时用的随机星点
+            SpriteRenderer _space;  // 太空背景：原版加载界面的背景图，贴在相机前面，随转球微微移动
             Mesh _starMesh;
             readonly List<(SpriteRenderer from, SpriteRenderer to)> _eras = new List<(SpriteRenderer, SpriteRenderer)>();
             Rect _map;              // 地图在世界坐标里的范围，取地形层的边界
@@ -191,6 +193,8 @@ namespace WorldboxGlobe
                         if (renderer != null) Destroy(renderer.gameObject);
                     if (_halo != null) Destroy(_halo.gameObject);
                     if (_stars != null) Destroy(_stars.gameObject);
+                    if (_space != null) Destroy(_space.gameObject);
+                    _space = null;
                     foreach (var (_, to) in _eras)
                         if (to != null) Destroy(to.gameObject);
                     _eras.Clear();
@@ -211,6 +215,14 @@ namespace WorldboxGlobe
                         _stars.transform.SetParent(_camera.transform, false);
                         _stars.sharedMaterial.mainTexture = StarTexture();
                         _stars.sharedMaterial.color = Color.white;
+                        Sprite space = SpaceSprite();
+                        if (space != null)
+                        {
+                            var bg = new GameObject("globe_space") { layer = Layer };
+                            bg.transform.SetParent(_camera.transform, false);
+                            _space = bg.AddComponent<SpriteRenderer>();
+                            _space.sprite = space;
+                        }
                     }
                     // 时代滤镜：原版贴在主相机前的几张全屏图，照样贴一份在地球仪相机前
                     if (WorldAgeEffects.instance != null)
@@ -244,9 +256,15 @@ namespace WorldboxGlobe
                 _halo.enabled = true;
                 _halo.sortingLayerID = _terrain.sprRnd.sortingLayerID;
                 _halo.sortingOrder = _terrain.sprRnd.sortingOrder - 1;
-                _stars.enabled = true;
+                _stars.enabled = _space == null;
                 _stars.sortingLayerID = _terrain.sprRnd.sortingLayerID;
                 _stars.sortingOrder = _terrain.sprRnd.sortingOrder - 2;
+                if (_space != null)
+                {
+                    _space.enabled = true;
+                    _space.sortingLayerID = _terrain.sprRnd.sortingLayerID;
+                    _space.sortingOrder = _terrain.sprRnd.sortingOrder - 2;
+                }
             }
 
             static Color Tint(Material pMaterial) =>
@@ -331,6 +349,19 @@ namespace WorldboxGlobe
             // 星空铺满地球仪相机的视野，每个星点在屏幕上大小固定；转球时跟着相机位置微微移动
             void UpdateStars(Vector3 pCenter)
             {
+                if (_space != null)
+                {
+                    // 和原版加载界面一样铺满屏幕，多放大一点留出移动的余量
+                    float viewH = _size * 2f, viewW = viewH * _camera.aspect;
+                    Vector2 art = _space.sprite.bounds.size;
+                    float scale = Mathf.Max(viewW / art.x, viewH / art.y) * (1f + SpaceDrift * 2f);
+                    float dx = (pCenter.x - _map.center.x) / Mathf.Max(1f, _map.width);
+                    float dy = (pCenter.y - _map.center.y) / Mathf.Max(1f, _map.height);
+                    _space.transform.localScale = new Vector3(scale, scale, 1f);
+                    _space.transform.localPosition = new Vector3(-dx * SpaceDrift * viewW, -dy * SpaceDrift * viewH, 5f);
+                    _space.color = new Color(1f, 1f, 1f, Mathf.Clamp01(Bend * 2f - 0.5f));
+                    return;
+                }
                 float h = _size * 2f, w = h * _camera.aspect;
                 float pw = _camera.pixelWidth / (float)StarSize, ph = _camera.pixelHeight / (float)StarSize;
                 float ox = pCenter.x / Mathf.Max(1f, _map.width) * StarDrift, oy = pCenter.y / Mathf.Max(1f, _map.height) * StarDrift;
@@ -365,6 +396,14 @@ namespace WorldboxGlobe
                     to.transform.localRotation = from.transform.rotation;
                     to.transform.localScale = from.transform.lossyScale * k;
                 }
+            }
+
+            // 原版加载界面的背景图（星空和星云）
+            static Sprite SpaceSprite()
+            {
+                foreach (LoadingScreen screen in Resources.FindObjectsOfTypeAll<LoadingScreen>())
+                    if (screen.background != null && screen.background.sprite != null) return screen.background.sprite;
+                return null;
             }
 
             // 随机星点：大多是暗淡的白点，少数亮星带一点蓝或黄
@@ -417,6 +456,7 @@ namespace WorldboxGlobe
                     if (renderer != null && renderer.enabled) renderer.enabled = false;
                 if (_halo != null && _halo.enabled) _halo.enabled = false;
                 if (_stars != null && _stars.enabled) _stars.enabled = false;
+                if (_space != null && _space.enabled) _space.enabled = false;
                 foreach (var (_, to) in _eras)
                     if (to != null && to.enabled) to.enabled = false;
             }
