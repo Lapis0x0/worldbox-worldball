@@ -1,8 +1,8 @@
 {
-  "name": "星球 Planet",
+  "name": "世界球 WorldBall",
   "author": "Lapis0x0",
   "version": "0.1.0",
-  "description": "新建世界多一个「星球」模板，拉远镜头看到整颗星球。\nA planet world template; zoom out to see the whole globe.",
+  "description": "新建世界多一个「星球」模板：地图东西首尾相接，拉远镜头就是一整颗星球。\nA planet world template: the map wraps east to west, and zooming out shows the whole globe.",
   "GUID": "lapis0x0_worldball",
   "targetGameBuild": 719,
   "UsePublicizedAssembly": true
