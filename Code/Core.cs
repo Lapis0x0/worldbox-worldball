@@ -1,6 +1,9 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using HarmonyLib;
+using NeoModLoader.utils;
+using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 namespace WorldboxGlobe
@@ -14,6 +17,7 @@ namespace WorldboxGlobe
 
         public static void Start(string pFolder)
         {
+            LoadIcons(pFolder);
             _harmony = new Harmony(HarmonyId);
             _harmony.PatchAll(typeof(Core).Assembly);
             Planet.Init();
@@ -25,6 +29,23 @@ namespace WorldboxGlobe
             _harmony?.UnpatchSelf();
             _harmony = null;
             Globe.Stop();
+        }
+
+        // NML 只在游戏启动时加载 GameResources/ 下的图片；这里再注册一遍，热重载时改过的图标也能换上。
+        // 原版 SpriteTextureLoader 按路径缓存，要把旧的清掉
+        static void LoadIcons(string pFolder)
+        {
+            string root = Path.Combine(pFolder, "GameResources");
+            if (!Directory.Exists(root)) return;
+            foreach (string file in Directory.GetFiles(root, "*.png", SearchOption.AllDirectories))
+            {
+                Sprite[] sprites = SpriteLoadUtils.LoadSprites(file);
+                if (sprites.Length == 0) continue;
+                string path = file.Substring(root.Length + 1).Replace('\\', '/');
+                path = path.Substring(0, path.Length - ".png".Length);
+                ResourcesPatch.PatchResource(path, sprites[0]);
+                SpriteTextureLoader._cached_sprites.Remove(path);
+            }
         }
     }
 

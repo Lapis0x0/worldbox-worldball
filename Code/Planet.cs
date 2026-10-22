@@ -17,6 +17,7 @@ namespace WorldboxGlobe
     {
         public const string Id = "globe_planet";
         const string Flag = "globe_planet";
+        const string Icon = "ui/globe_template_planet";
 
         // 接缝大洋：离接缝不到半个地图宽的 SeamOcean 是海，到 SeamLand 恢复原来的地形
         const float SeamOcean = 0.07f;
@@ -60,7 +61,7 @@ namespace WorldboxGlobe
                 AssetManager.map_gen_templates.add(template);
             }
             MapGenTemplate continent = AssetManager.map_gen_templates.get("continent");
-            template.path_icon = continent.path_icon;
+            template.path_icon = Icon;
             template.freeze_mountains = true;
             template.show_reset_button = false;
             // 圆形、方形边缘和中心的环、湖都是按正方形地图设计的，由这里的经纬度规则代替
@@ -80,7 +81,11 @@ namespace WorldboxGlobe
             template.allow_edit_random_shapes = false;
             template.perlin_replace = continent.perlin_replace;
             foreach (ButtonClickMaptemplate button in Resources.FindObjectsOfTypeAll<ButtonClickMaptemplate>())
+            {
                 AddButton(button);
+                // 已经建好的按钮在 Awake 里设过预览图，热重载换了图标要重新设
+                if (button.name == Id) button.transform.Find("preview_icon").GetComponent<UnityEngine.UI.Image>().sprite = SpriteTextureLoader.getSprite(Icon);
+            }
         }
 
         public static bool IsPlanet()

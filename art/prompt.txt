@@ -1,0 +1,11 @@
+Reference images: (1) three of WorldBox's world-template icons — each is a full-bleed 50x50 pixel-art square showing a tiny map seen from above (blue ocean, green and sand islands, grey rocks). (2) WorldBox's loading screen: a pixel-art planet in deep space — dark navy-black sky, small square white and cyan stars, a few four-point twinkle stars, soft dithered purple and teal nebula wisps. (3) the same vanilla planet up close: blue ocean, bright green continents with sandy coasts, white swirling cloud bands, a thin glowing cyan rim around the sphere.
+
+Draw a new world-template icon in exactly the same family as reference (1), for a template called "Planet": the whole world is one round planet. Make a 2x2 grid of four alternative versions, one per cell. Each version is a single full-bleed square tile (the square itself is the icon, with hard straight edges), drawn on a strict 50x50 pixel grid, filling about 76% of its cell width, centered in the cell.
+
+Inside every tile: the deep-space sky of reference (2) as the background, and in the middle a small planet drawn in the style of reference (3) — blue ocean, two or three green continents with sand coasts, a few white cloud swirls, small white polar ice caps at the top and bottom, a 1-pixel cyan glow rim, and gentle shading toward one edge so it reads as a ball.
+- Cell 1: planet about 70% of the tile, centered, a handful of stars around it.
+- Cell 2: planet about 80% of the tile, slightly tilted, one four-point twinkle star in a corner.
+- Cell 3: planet about 70% of the tile, with a faint purple nebula wisp behind it on one side.
+- Cell 4: planet large, about 90% of the tile, filling it, only a thin ring of space visible at the corners.
+
+Style: WorldBox pixel art exactly like the references — chunky square pixels on a strict grid, limited palette, no anti-aliasing, no smooth gradients (use dithering instead), no text, no frame or border around the tile. Flat uniform medium grey (#808080) background outside the four tiles, no labels.

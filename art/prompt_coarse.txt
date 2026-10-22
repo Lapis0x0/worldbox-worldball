@@ -1,0 +1,5 @@
+The reference image is a pixel-art icon: a small planet (blue ocean, green continent with sandy coast and two grey rocks, white cloud swirl, white polar caps, thin glowing cyan rim) in deep navy space with a purple nebula streak behind it and a few white and cyan stars, on a grey background.
+
+Redraw exactly the same icon — same composition, same planet size relative to the square, same colors, same nebula and star placement — but as much chunkier pixel art on a strict 50x50 pixel grid: the dark square tile must be exactly 50 pixels wide and 50 pixels tall, every pixel a clearly visible solid square block. Simplify the details so they read at 50x50: the continent shape, the sandy coast, one cloud swirl, the polar caps and the 1-pixel cyan rim must all survive. Keep the planet about 70% of the tile width with space around it.
+
+The tile is a single full-bleed square with hard straight edges, centered in the image, about 60% of the image width, on a flat uniform medium grey (#808080) background. Chunky square pixels on a strict grid, limited palette, no anti-aliasing, no smooth gradients, no text, no border or frame.

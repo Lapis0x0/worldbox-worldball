@@ -1,0 +1,7 @@
+Reference image 1 is a pixel-art icon: a small planet (blue ocean, green continent with sandy coast and two grey rocks, white cloud swirl, white polar caps, thin glowing cyan rim) in deep navy space with a purple nebula streak behind it and a few white and cyan stars.
+
+Reference image 2 is a layout guide on a strict 50x50 pixel grid: a dark navy square tile with a PERFECTLY ROUND pixel circle of exactly 36 pixels diameter in the middle (blue fill, 1-pixel cyan rim).
+
+Redraw the icon of reference 1 on exactly the grid of reference 2: the same 50x50 square tile at the same size and position in the image, and the planet's outline must follow the circle of reference 2 exactly — a perfect circle, as wide as it is tall, no flat sides, no octagon, no bumps. Inside the circle keep the planet of reference 1 (continent, sandy coast, grey rocks, cloud swirl, polar caps, cyan rim); around it keep the navy space with the purple nebula streak and the stars of reference 1. Every pixel a solid square block aligned to the grid of reference 2.
+
+Chunky square pixels on a strict grid, limited palette, no anti-aliasing, no smooth gradients, no text, no border or frame. Flat uniform medium grey (#808080) background outside the tile.
