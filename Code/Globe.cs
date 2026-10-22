@@ -66,7 +66,7 @@ namespace WorldboxGlobe
             readonly List<int> _tris = new List<int>();
             readonly List<(MapLayer layer, MeshRenderer renderer)> _layers = new List<(MapLayer, MeshRenderer)>();
             WorldLayer _terrain;
-            MeshRenderer _halo;     // 大气：球外一圈淡淡的光
+            MeshRenderer _halo;     // 大气：刚开始弯时铺满屏幕（原版地图外面的那片蓝），随缩放收拢成球外一圈光
             Mesh _haloMesh;
             Vector3[] _haloVerts;
             Color32[] _haloColors;
@@ -122,12 +122,12 @@ namespace WorldboxGlobe
 
                 Vector3 center = move.transform.position;
                 if (!_camera.enabled) Tooltip.hideTooltip(null, true, string.Empty);
-                _camera.backgroundColor = Color.Lerp(move.main_camera.backgroundColor, Space, Mathf.Clamp01(Bend * 3f));
+                _camera.backgroundColor = Space;
                 _camera.enabled = true;
                 _camera.orthographicSize = _size;
                 _camera.transform.position = new Vector3(center.x, center.y, -10f);
                 _camera.farClipPlane = (float)(radius * 2.0 + 20.0);
-                Shape(center.x, center.y, radius);
+                Shape(center.x, center.y, radius, move.main_camera.backgroundColor);
                 UpdateStars(center);
                 UpdateEras(zoom);
             }
@@ -162,18 +162,20 @@ namespace WorldboxGlobe
 
                 _haloMesh = new Mesh { name = "globe_halo" };
                 _haloMesh.MarkDynamic();
-                _haloVerts = new Vector3[Segments * 2];
-                _haloColors = new Color32[Segments * 2];
-                var haloTris = new int[Segments * 6];
+                // 中心一点、一圈不透明的内圈、一圈全透明的外圈：内圈以内是实心的，内外圈之间淡出
+                _haloVerts = new Vector3[1 + Segments * 2];
+                _haloColors = new Color32[1 + Segments * 2];
+                var haloTris = new int[Segments * 9];
                 for (int k = 0; k < Segments; k++)
                 {
-                    int i0 = k * 2, o0 = k * 2 + 1, i1 = (k + 1) % Segments * 2, o1 = i1 + 1;
-                    haloTris[k * 6] = i0; haloTris[k * 6 + 1] = i1; haloTris[k * 6 + 2] = o0;
-                    haloTris[k * 6 + 3] = o0; haloTris[k * 6 + 4] = i1; haloTris[k * 6 + 5] = o1;
+                    int i0 = 1 + k, i1 = 1 + (k + 1) % Segments, o0 = i0 + Segments, o1 = i1 + Segments;
+                    haloTris[k * 9] = 0; haloTris[k * 9 + 1] = i1; haloTris[k * 9 + 2] = i0;
+                    haloTris[k * 9 + 3] = i0; haloTris[k * 9 + 4] = i1; haloTris[k * 9 + 5] = o0;
+                    haloTris[k * 9 + 6] = o0; haloTris[k * 9 + 7] = i1; haloTris[k * 9 + 8] = o1;
                 }
                 _haloMesh.vertices = _haloVerts;
                 _haloMesh.colors32 = _haloColors;
-                _haloMesh.uv = new Vector2[Segments * 2];
+                _haloMesh.uv = new Vector2[1 + Segments * 2];
                 _haloMesh.triangles = haloTris;
 
                 _starMesh = new Mesh { name = "globe_stars" };
@@ -281,7 +283,7 @@ namespace WorldboxGlobe
             }
 
             // 横向按经度、纵向按纬度把网格卷到半径 R 的球上，再绕横轴转，让相机正对的那一点朝向屏幕
-            void Shape(float pCx, float pCy, double pRadius)
+            void Shape(float pCx, float pCy, double pRadius, Color pSky)
             {
                 double w = _map.width, h = _map.height;
                 double midY = _map.y + h / 2.0;
@@ -326,20 +328,24 @@ namespace WorldboxGlobe
                 var bounds = new Bounds(new Vector3(pCx, pCy, (float)pRadius), Vector3.one * (float)(pRadius * 4 + w + h));
                 _mesh.bounds = bounds;
 
-                // 大气：从球的边缘往外淡出，弯成球以后才有
+                // 大气：刚开始弯时是原版地图外面那片蓝，铺满屏幕；越往外拉，从屏幕四边开始变薄、透出太空，
+                // 弯成球时收拢成球外一圈光。像从低空升到太空，头顶的天越来越暗，最后只剩地平线上一道蓝边
+                double cover = _size * Math.Sqrt(1 + _camera.aspect * _camera.aspect);
+                double solid = cover * (1 - Bend) + pRadius * 0.98 * Bend;
+                double fade = cover * 1.3 * (1 - Bend) + pRadius * (1 + Halo) * Bend;
+                Color glow = Atmosphere * Tint(_terrain.sprRnd.sharedMaterial);
+                Color inner = Color.Lerp(pSky, glow, Bend);
+                inner.a = Mathf.Lerp(1f, Atmosphere.a, Bend);
+                _haloVerts[0] = new Vector3(pCx, pCy, (float)pRadius);
+                _haloColors[0] = inner;
                 for (int k = 0; k < Segments; k++)
                 {
                     double a = 2 * Math.PI * k / Segments;
                     double ca = Math.Cos(a), sa = Math.Sin(a);
-                    _haloVerts[k * 2] = new Vector3((float)(pCx + pRadius * 0.98 * ca), (float)(pCy + pRadius * 0.98 * sa), (float)pRadius);
-                    _haloVerts[k * 2 + 1] = new Vector3((float)(pCx + pRadius * (1 + Halo) * ca), (float)(pCy + pRadius * (1 + Halo) * sa), (float)pRadius);
-                }
-                Color inner = Atmosphere * Tint(_terrain.sprRnd.sharedMaterial);
-                inner.a = Atmosphere.a * Bend * Bend;
-                for (int k = 0; k < Segments; k++)
-                {
-                    _haloColors[k * 2] = inner;
-                    _haloColors[k * 2 + 1] = new Color(inner.r, inner.g, inner.b, 0f);
+                    _haloVerts[1 + k] = new Vector3((float)(pCx + solid * ca), (float)(pCy + solid * sa), (float)pRadius);
+                    _haloVerts[1 + Segments + k] = new Vector3((float)(pCx + fade * ca), (float)(pCy + fade * sa), (float)pRadius);
+                    _haloColors[1 + k] = inner;
+                    _haloColors[1 + Segments + k] = new Color(inner.r, inner.g, inner.b, 0f);
                 }
                 _haloMesh.vertices = _haloVerts;
                 _haloMesh.colors32 = _haloColors;
@@ -359,7 +365,7 @@ namespace WorldboxGlobe
                     float dy = (pCenter.y - _map.center.y) / Mathf.Max(1f, _map.height);
                     _space.transform.localScale = new Vector3(scale, scale, 1f);
                     _space.transform.localPosition = new Vector3(-dx * SpaceDrift * viewW, -dy * SpaceDrift * viewH, 5f);
-                    _space.color = new Color(1f, 1f, 1f, Mathf.Clamp01(Bend * 2f - 0.5f));
+                    _space.color = Color.white;     // 一开始被大气盖住，大气变薄时从屏幕四边露出来
                     return;
                 }
                 float h = _size * 2f, w = h * _camera.aspect;
