@@ -22,6 +22,7 @@ namespace WorldboxGlobe
             _harmony.PatchAll(typeof(Core).Assembly);
             Planet.Init();
             Globe.Init();
+            Seam.Init();
         }
 
         public static void Stop()

@@ -7,7 +7,7 @@ namespace WorldboxGlobe
 {
     // 「星球」模板：新建世界时多一个模板，生成的地图可以无缝卷成一个球。
     // - 宽高 2:1，横向对应经度 360°，纵向对应纬度 180°，卷成球时横竖比例一致
-    // - 地图左右两边（经度 180° 处）是一条贯通南北的大洋，卷起来接缝在海里
+    // - 地图左右两边首尾相接（见 Seam），大陆可以跨过接缝
     // - 两极是冰原（原版的冰面和永冻土，季节变化也不会化）。冰原的边界和浮冰按多层噪声起伏，
     //   高纬度原有的陆地留下一部分，铺成雪原，山照原版冻上
     // 地形直接在球面上生成：每一格先换算成球面上的点，在那里取噪声决定高度，所以卷回球上时大陆形状自然，
@@ -19,9 +19,6 @@ namespace WorldboxGlobe
         const string Flag = "globe_planet";
         const string Icon = "ui/globe_template_planet";
 
-        // 接缝大洋：离接缝不到半个地图宽的 SeamOcean 是海，到 SeamLand 恢复原来的地形
-        const float SeamOcean = 0.07f;
-        const float SeamLand = 0.22f;
         // 纬度（以 90° 为 1）：LandFade 起陆地逐渐压低，到两极高度只剩 PoleKeep，陆地少一些
         const float LandFade = 0.55f;
         const float PoleKeep = 0.8f;
@@ -157,9 +154,40 @@ namespace WorldboxGlobe
                 SmoothLoader.add(delegate
                 {
                     if (!Guard.On) return;
-                    try { Shape(); }
+                    try
+                    {
+                        Seam.Link();
+                        Shape();
+                    }
                     catch (Exception e) { Guard.Fail("星球·地形", e); }
                 }, "Planet Shape");
+            }
+        }
+
+        // 原版按平面上的柏林噪声把一部分地块换成别的地形（大陆模板用来铺不同的土壤），左右两边对不上。
+        // 星球改在球面上取噪声，尺度和原版相当
+        [HarmonyPatch(typeof(GeneratorTool), nameof(GeneratorTool.ApplyPerlinReplace))]
+        static class Patch_PerlinReplace
+        {
+            static int _salt;
+
+            static bool Prefix(PerlinReplaceContainer pContainer)
+            {
+                if (MapGenerator.template?.id != Id || !Guard.On) return true;
+                try
+                {
+                    float scale = MapBox.width / Mathf.Max(0.01f, pContainer.scale * Mathf.Max(1, MapBox.width / Mathf.Max(1, MapBox.height)));
+                    int salt = 40 + _salt++ % 50;
+                    foreach (WorldTile tile in World.world.tiles_list)
+                    {
+                        int value = (int)(Fbm(OnSphere(tile), scale, 2, salt) * 255f);
+                        foreach (PerlinReplaceOption option in pContainer.options)
+                            if (value > option.replace_height_value && tile.main_type.IsType(option.from))
+                                tile.setTileType(option.to);
+                    }
+                    return false;
+                }
+                catch (Exception e) { Guard.Fail("星球·地形", e); return true; }
             }
         }
 
@@ -191,13 +219,6 @@ namespace WorldboxGlobe
 
         // 纬度，以 90° 为 1，南负北正
         static float Latitude(WorldTile pTile) => (pTile.y + 0.5f) / MapBox.height * 2f - 1f;
-
-        // 离接缝多远，以半个地图宽为 1
-        static float FromSeam(WorldTile pTile)
-        {
-            float x = pTile.x + 0.5f;
-            return Mathf.Min(x, MapBox.width - x) / (MapBox.width / 2f);
-        }
 
         static int _seed;
 
@@ -256,7 +277,7 @@ namespace WorldboxGlobe
                     height = SeaLevel + (Upland - SeaLevel) * inland + Mountain(OnSphere(tile), inland);
                 }
                 float lat = Mathf.Abs(Latitude(tile));
-                float keep = Smooth(SeamOcean, SeamLand, FromSeam(tile)) * Mathf.Lerp(1f, PoleKeep, Smooth(LandFade, 1f, lat));
+                float keep = Mathf.Lerp(1f, PoleKeep, Smooth(LandFade, 1f, lat));
                 int h = Mathf.RoundToInt(height * keep);
                 // 冰原上的海抬到浅海，之后铺上冰面；陆地留着，之后铺成雪原
                 if (Icy(tile)) h = Mathf.Max(h, IceHeight);
