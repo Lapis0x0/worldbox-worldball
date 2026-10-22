@@ -20,6 +20,7 @@ namespace WorldboxGlobe
             LoadIcons(pFolder);
             _harmony = new Harmony(HarmonyId);
             _harmony.PatchAll(typeof(Core).Assembly);
+            Wrapped.Patch(_harmony);
             Planet.Init();
             Globe.Init();
             Seam.Init();

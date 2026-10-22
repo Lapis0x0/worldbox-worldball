@@ -7,7 +7,9 @@ namespace WorldboxGlobe
 {
     // 东西无缝：星球世界的地图左右两边首尾相接，和球上一样。
     // - 连通：地块、区块、大块的邻居表在左右两边绕到对面。原版的寻路、地区、岛屿、蔓延、群系都是按邻居表走的，跟着就通了
-    // - 移动：单位一步跨过接缝时，先把下一步的目标挪到同一侧走过去，走到后再整体挪回地图里（正好差一个图宽，看不出来）
+    // - 移动：单位一步跨过接缝时，先把下一步的目标挪到同一侧走过去，走到后再整体挪回地图里（正好差一个图宽，看不出来）；
+    //   投射物同理，朝向、出拳按近的那一侧
+    // - 距离、方向、按坐标取地块：见 Wrapped
     // 平面视角的画面和操作照原版，地图还是一张有左右边的图；拉远成球时自然是连着的
     // 上下不相接：球上从北边走出去是绕过极点，不是从南边冒出来
     public static class Seam
@@ -165,6 +167,62 @@ namespace WorldboxGlobe
                     if (x != next.x) __instance.next_step_position = new Vector2(x, next.y);
                 }
                 catch (Exception e) { Guard.Fail("无缝·移动", e); }
+            }
+        }
+
+        // 转身看向、出拳的方向：目标在接缝对面时按近的那一侧
+        [HarmonyPatch(typeof(Actor), nameof(Actor.lookTowardsPosition))]
+        static class Patch_Look
+        {
+            static void Prefix(Actor __instance, ref Vector2 pDirection)
+            {
+                if (!On || !Guard.On) return;
+                try { pDirection.x = Near(pDirection.x, __instance.current_position.x); }
+                catch (Exception e) { Guard.Fail("无缝·朝向", e); }
+            }
+        }
+
+        [HarmonyPatch(typeof(Actor), nameof(Actor.punchTargetAnimation))]
+        static class Patch_Punch
+        {
+            static void Prefix(Actor __instance, ref Vector3 pDirection)
+            {
+                if (!On || !Guard.On) return;
+                try { pDirection.x = Near(pDirection.x, __instance.current_position.x); }
+                catch (Exception e) { Guard.Fail("无缝·朝向", e); }
+            }
+        }
+
+        // 投射物：目标在接缝对面时朝近的那一侧飞
+        [HarmonyPatch(typeof(Projectile), nameof(Projectile.start))]
+        static class Patch_Launch
+        {
+            static void Prefix(Vector3 pLaunchPosition, ref Vector3 pTargetPosition)
+            {
+                if (!On || !Guard.On) return;
+                try { pTargetPosition.x = Near(pTargetPosition.x, pLaunchPosition.x); }
+                catch (Exception e) { Guard.Fail("无缝·投射物", e); }
+            }
+        }
+
+        // 飞出地图左右边的投射物连同起点、目标一起挪回来，落点和沿途击中都按地图里的地块算
+        [HarmonyPatch(typeof(Projectile), nameof(Projectile.update))]
+        static class Patch_Flight
+        {
+            static void Prefix(Projectile __instance)
+            {
+                if (!On || !Guard.On) return;
+                try
+                {
+                    float x = __instance._current_position_3d.x;
+                    float folded = Fold(x);
+                    if (folded == x) return;
+                    float shift = folded - x;
+                    __instance._current_position_3d.x = folded;
+                    __instance._vector_start.x += shift;
+                    __instance._vector_target.x += shift;
+                }
+                catch (Exception e) { Guard.Fail("无缝·投射物", e); }
             }
         }
     }
